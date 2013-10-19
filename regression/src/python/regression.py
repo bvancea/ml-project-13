@@ -1,45 +1,45 @@
 __author__ = 'bogdan'
 
-
+import io_utils as io
 import numpy as np
-from numpy import genfromtxt
 from sklearn import linear_model
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import AdaBoostRegressor
 
+TRAINING_IN = "../resources/training.csv"
+VALIDATION_IN = "../resources/validation.csv"
+TESTING_IN = "../resources/validation.csv"
 
-def read_regression_data(training_file=None,testing_file=None,validation_file=None, delimiter=None):
-    if delimiter is None:
-        delimiter = ','
-    if training_file is None:
-        training_file = '../resources/training.csv'
-    training_ret = genfromtxt(training_file, delimiter=delimiter, usecols=range(13))
-    training_label = genfromtxt(training_file, delimiter=delimiter, usecols=14)
-    if validation_file is None:
-        validation_file = '../resources/validation.csv'
-    validation_ret = genfromtxt(validation_file, delimiter=delimiter, usecols=range(13))
-    if testing_file is None:
-        testing_file = '../resources/testing.csv'
-    testing_ret = genfromtxt(testing_file, delimiter=delimiter, usecols=range(13))
-    return training_ret, training_label, testing_ret,validation_ret
+TESTING_OUT = './out/testing_y.out'
+VALIDATION_OUT = './out/validation_y.out'
 
-
-def write_to_result_file(filename, prediction_list):
-    prediction_list = np.array(prediction_list)
-    prediction_list.tofile(file=filename, sep='\n')
 
 #read input data
-training_X, training_y, testing_X, validation_X = read_regression_data()
+training_X, training_y, testing_X, validation_X = io.read_regression_data()
 
+#Scale input data with respect to mean and std dev
+scaler = StandardScaler()
+scaler.fit(training_X)
+training_X = scaler.transform(training_X)
+testing_X = scaler.transform(testing_X)
+validation_X = scaler.transform(validation_X)
+
+rng = np.random.RandomState(1)
 #train regressor
-regressor = linear_model.LinearRegression()
+#regularizers = [0.00001, 0.0001, 0.001, 0.01, 0.1, 1]
+#regressor = linear_model.RidgeCV(regularizers, normalize=True)
+regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4),
+                          n_estimators=300, random_state=rng)
+
 regressor.fit(training_X, training_y)
 
-print regressor.coef_
 
 #make predictions
 testing_y = regressor.predict(testing_X)
 validation_y = regressor.predict(validation_X)
 
 #write to output file
-write_to_result_file('testing_y.txt', testing_y)
-write_to_result_file('validation_y.txt', validation_y)
+io.write_prediction(TESTING_OUT, testing_y)
+io.write_prediction(VALIDATION_OUT, validation_y)
 
