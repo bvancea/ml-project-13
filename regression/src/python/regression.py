@@ -49,7 +49,11 @@ for k in range(2, 8):
 		regressor.fit(X_train, y_train)
 		X_test_pred = regressor.predict(X_test)
 		loss = metrics.mean_square_error(y_test, X_test_pred)
-		print "loss = " + `loss`
+		#print "loss = " + `loss`
+		training_y_pred = regressor.predict(training_X)
+		loss = metrics.mean_square_error(training_y, training_y_pred)
+		print loss
+
 
 print "\nLoss for LR without cross validation"
 regressor = linear_model.Ridge()
