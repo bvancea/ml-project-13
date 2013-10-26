@@ -51,6 +51,13 @@ for k in range(2, 8):
 		loss = metrics.mean_square_error(y_test, X_test_pred)
 		print "loss = " + `loss`
 
+print "\nLoss for LR without cross validation"
+regressor = linear_model.Ridge()
+regressor.fit(training_X, training_y)
+# see the loss function loss(true,pred)
+training_y_pred = regressor.predict(training_X)
+loss = metrics.mean_square_error(training_y, training_y_pred)
+print loss
 
 #regularizers = [0.0001, 0.001, 0.05, 0.001, 0.05, 0.01, 0.1, 1.0, 5, 10, 100]
 
@@ -63,7 +70,6 @@ for k in range(2, 8):
 #selector = feature_selection.RFE(estimator, 3)
 #selector = selector.fit(training_X, training_y)
 
-regressor = linear_model.Ridge()
 
 #eliminate features one by one
 print "\nFeatures in descending order"
@@ -85,14 +91,9 @@ while len(features) > 0:
 	print features[max_k]
 	del features[max_k]
 
-
-regressor.fit(training_X, training_y)
-
-# see the loss function loss(true,pred)
-training_y_pred = regressor.predict(training_X)
-loss = metrics.mean_square_error(training_y, training_y_pred)
-
 #make predictions
+regressor.fit(training_X, training_y)
+training_y_pred = regressor.predict(training_X)
 validation_y = regressor.predict(validation_X)
 
 #write to output file
