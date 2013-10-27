@@ -5,6 +5,7 @@ from sklearn.metrics import metrics
 from sklearn import cross_validation
 import pandas as pd
 import io_utils as io
+import pylab as pl
 from sklearn.svm import SVR
 from sklearn import feature_selection
 from sklearn.feature_selection import chi2
@@ -48,10 +49,10 @@ for k in range(2, 8):
         regressor = linear_model.Ridge()
         regressor.fit(X_train, y_train)
         X_test_pred = regressor.predict(X_test)
-        loss = metrics.mean_square_error(y_test, X_test_pred)
+        loss = metrics.mean_squared_error(y_test, X_test_pred)
         #print "loss = " + `loss`
         training_y_pred = regressor.predict(training_X)
-        loss = metrics.mean_square_error(training_y, training_y_pred)
+        loss = metrics.mean_squared_error(training_y, training_y_pred)
         print loss
 
 print "\nLoss for LR without cross validation"
@@ -59,7 +60,7 @@ regressor = linear_model.Ridge()
 regressor.fit(training_X, training_y)
 # see the loss function loss(true,pred)
 training_y_pred = regressor.predict(training_X)
-loss = metrics.mean_square_error(training_y, training_y_pred)
+loss = metrics.mean_squared_error(training_y, training_y_pred)
 print loss
 
 #regularizers = [0.0001, 0.001, 0.05, 0.001, 0.05, 0.01, 0.1, 1.0, 5, 10, 100]
@@ -86,7 +87,7 @@ while len(features) > 0:
         actual_training_X = io.preprocess_features(training, actual_features)
         regressor.fit(actual_training_X, training_y)
         training_y_pred = regressor.predict(actual_training_X)
-        loss = metrics.mean_square_error(training_y, training_y_pred)
+        loss = metrics.mean_squared_error(training_y, training_y_pred)
         # looking for the maximum loss so that to eliminate the corresponding feature
         if loss > max_loss:
             max_k = k
