@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing, linear_model, feature_selection, cross_validation, metrics
+from sklearn import preprocessing, feature_selection, cross_validation, metrics
 from itertools import compress
 from operator import itemgetter
 
@@ -96,35 +96,6 @@ class DataFrameStandardizer:
     def inverse_transform(self, data):
         scaled_data = self.scaler.inverse_transform(data, copy=True)
         return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
-
-
-class PolyModel:
-
-    def transform(self, X_train, order):
-        labels = [x for x in X_train]
-        features_x = np.vander(X_train[labels[0]], order)
-        for label in labels[1:]:
-            current_x = np.vander(X_train[label], order)
-            features_x = np.concatenate((current_x, features_x), axis=1)
-
-        return features_x
-
-
-class PolyRegressor:
-
-    def __init__(self, degree, regressor):
-        self.degree = degree
-        self.regressor = regressor
-        self.poly_model = PolyModel()
-
-    def fit(self, X_train, y_train):
-        X_train = self.poly_model.transform(X_train, self.degree)
-        self.regressor.fit(X_train, y_train)
-
-    def predict(self, X_test):
-        X_test = self.poly_model.transform(X_test, self.degree)
-        result = self.regressor.predict(X_test)
-        return result
 
 
 class FeatureAdder:
