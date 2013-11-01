@@ -155,9 +155,6 @@ class DataFrameStandardizer:
 
 
 def sum_squares(x, y):
-    #scaler = preprocessing.MinMaxScaler()
-    #x = pd.Series(data=scaler.fit_transform(x), index=x.index, name=x.name)
-    #y = pd.Series(data=scaler.fit_transform(y), index=y.index, name=y.name)
     return np.sin(x) + np.sin(y)
 
 

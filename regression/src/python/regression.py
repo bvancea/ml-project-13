@@ -1,12 +1,12 @@
 __author__ = 'bogdan'
 
 import numpy as np
+import io_utils as io
+import regression_utils as reg_utils
 
 from sklearn import linear_model, grid_search
 from pyearth import Earth
 
-import io_utils as io
-import regression_utils as reg_utils
 
 
 ###############################################################################################
