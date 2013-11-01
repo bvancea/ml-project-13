@@ -1,68 +1,18 @@
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing, feature_selection, cross_validation, metrics
-from itertools import compress
 from operator import itemgetter
-
-
-def do_feature_selection(reg, training, validation_X, testing_X):
-
-    selector = feature_selection.RFECV(estimator=reg, cv=2, verbose=0)
-    training_y = training.delay
-    training_X = training.drop(labels=['delay'], axis=1)
-
-    selector.fit(training_X, training_y)
-    a = list(training_X)
-    b = list(compress(training_X, selector.support_))
-    c = [x for x in a if x not in b]
-
-    training = training.drop(labels=c, axis=1)
-    validation_X = validation_X.drop(labels=c, axis=1)
-    testing_X = testing_X.drop(labels=c, axis=1)
-
-    return training, validation_X, testing_X
-
-
-def preprocess_data(training, validation_X, testing_X, normalize=False, standardize=False):
-
-    if normalize:
-        #perform standardization on the features
-        scaler = DataFrameStandardizer()
-        training_y = training.delay
-        training_X = training.drop(labels=['delay'], axis=1)
-        training_X = scaler.fit_transform(training_X)
-        validation_X = scaler.transform(validation_X)
-        testing_X = scaler.transform(testing_X)
-
-        #rebuild feature matrix
-        training = training_X.copy()
-        training['delay'] = training_y
-
-    if normalize:
-        #perform standardization on the features
-        scaler = DataFrameStandardizer(scaler=preprocessing.StandardScaler())
-        training_y = training.delay
-        training_X = training.drop(labels=['delay'], axis=1)
-        training_X = scaler.fit_transform(training_X)
-        validation_X = scaler.transform(validation_X)
-        testing_X = scaler.transform(testing_X)
-
-        #rebuild feature matrix
-        training = training_X.copy()
-        training['delay'] = training_y
-
-    return training, validation_X, testing_X
+from sklearn import preprocessing, cross_validation
 
 
 class MultipleEstimatorCV:
 
-    def __init__(self, k):
-        self.k = k
+    def __init__(self, test_set_size):
+        self.test_set_size = test_set_size
         self.analyzed_models = []
 
     def cross_validate_models(self, models, X, y):
 
-        test_size = 1.0/self.k
+        test_size = self.test_set_size
         X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y,
                                                                              test_size=test_size,
                                                                              random_state=42)
@@ -76,26 +26,6 @@ class MultipleEstimatorCV:
 
         return sorted(self.analyzed_models, key=itemgetter(2, 3), reverse=True)
 
-
-class DataFrameStandardizer:
-    """
-        Simple wrapper over the scikit-learn StandardScaler so that it works
-        properly with pandas DataFrame objects
-    """
-    def __init__(self, scaler=preprocessing.MinMaxScaler()):
-        self.scaler = scaler
-
-    def fit_transform(self, data):
-        scaled_data = self.scaler.fit_transform(data)
-        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
-
-    def transform(self, data):
-        scaled_data = self.scaler.transform(data)
-        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
-
-    def inverse_transform(self, data):
-        scaled_data = self.scaler.inverse_transform(data, copy=True)
-        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
 
 
 class FeatureAdder:
@@ -118,6 +48,8 @@ class FeatureAdder:
 
         #copy the data frame
         new_features_df = features_df.copy()
+
+        # Add transformed versions of the most important features
         for function in self.functions:
             for label in x_labels:
                 abs_corr = abs(correlation_matrix[feature_y_label][label])
@@ -129,6 +61,8 @@ class FeatureAdder:
                     new_features_df[new_label] = features_df[label] * function(features_df[label])
 
         x_labels = filter(lambda x: x != 'delay', features_df)
+
+        # Add some combination of 2 highly correlated features
         if intra_feature_corr:
             for i in x_labels:
                 for j in x_labels:
@@ -168,11 +102,63 @@ class FeatureAdder:
         return new_features_df
 
 
+def preprocess_data(training, validation_X, testing_X, normalize=False, standardize=False):
+
+    if normalize:
+        #perform standardization on the features
+        scaler = DataFrameStandardizer()
+        training_y = training.delay
+        training_X = training.drop(labels=['delay'], axis=1)
+        training_X = scaler.fit_transform(training_X)
+        validation_X = scaler.transform(validation_X)
+        testing_X = scaler.transform(testing_X)
+
+        #rebuild feature matrix
+        training = training_X.copy()
+        training['delay'] = training_y
+
+    if normalize:
+        #perform standardization on the features
+        scaler = DataFrameStandardizer(scaler=preprocessing.StandardScaler())
+        training_y = training.delay
+        training_X = training.drop(labels=['delay'], axis=1)
+        training_X = scaler.fit_transform(training_X)
+        validation_X = scaler.transform(validation_X)
+        testing_X = scaler.transform(testing_X)
+
+        #rebuild feature matrix
+        training = training_X.copy()
+        training['delay'] = training_y
+
+    return training, validation_X, testing_X
+
+
+class DataFrameStandardizer:
+    """
+        Simple wrapper over the scikit-learn StandardScaler so that it works
+        properly with pandas DataFrame objects
+    """
+    def __init__(self, scaler=preprocessing.MinMaxScaler()):
+        self.scaler = scaler
+
+    def fit_transform(self, data):
+        scaled_data = self.scaler.fit_transform(data)
+        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
+
+    def transform(self, data):
+        scaled_data = self.scaler.transform(data)
+        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
+
+    def inverse_transform(self, data):
+        scaled_data = self.scaler.inverse_transform(data, copy=True)
+        return pd.DataFrame(scaled_data, index=data.index, columns=data.columns)
+
+
 def sum_squares(x, y):
     #scaler = preprocessing.MinMaxScaler()
     #x = pd.Series(data=scaler.fit_transform(x), index=x.index, name=x.name)
     #y = pd.Series(data=scaler.fit_transform(y), index=y.index, name=y.name)
-    return np.exp(np.sin(x) + np.sin(y))
+    return np.sin(x) + np.sin(y)
 
 
 def product(x, y):
