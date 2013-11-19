@@ -2,7 +2,7 @@ __author__ = 'bogdan'
 import numpy as np
 import pandas as pd
 from operator import itemgetter
-from sklearn import preprocessing, cross_validation
+from sklearn import preprocessing, cross_validation, metrics
 
 
 class MultipleEstimatorCV:
@@ -25,7 +25,7 @@ class MultipleEstimatorCV:
 
             train_error = asymmetric_scorer(y_train, predicted_y_train)
             test_error = asymmetric_scorer(y_test, predicted_y_test)
-            print(test_error)
+
             #error = metrics.mean_squared_error(y_test, y_pred)
             self.analyzed_models.append((m, model_name, test_error, train_error))
 
@@ -43,8 +43,9 @@ def asymmetric_scorer(true_X, pred_X):
         #false negative
         if true_X[i] == -1 and pred_X[i] == 1:
             fn += 1
-
-    return (5 * fp + fn)/true_X.size
+    score = (5 * fp + fn) / float(true_X.size)
+    #print("FP: ", fp, " FN: ", fn, " m: ", true_X.size, " score: ", score)
+    return score
 
 
 
