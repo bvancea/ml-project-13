@@ -4,7 +4,7 @@ import numpy as np
 import io_utils as io
 import classification_utils as class_utils
 
-from sklearn import svm, linear_model, grid_search, cross_validation, preprocessing, metrics
+from sklearn import svm, linear_model, grid_search, cross_validation, preprocessing, metrics, ensemble, tree
 
 
 ###############################################################################################
@@ -35,20 +35,29 @@ custom_scorer = metrics.make_scorer(class_utils.asymmetric_scorer, greater_is_be
 # Least squares model, normalize flag indicates that data should be standardized
 # (brought to normal distribution)
 models = {}
-#params = {"penalty": ["l2"],
+# params = {"penalty": ["l1"],
 #          "C": np.linspace(1.0, 0.001, 10),
 #          "class_weight": [{-1: 0.8, 1: 0.2}],
-#          "dual": [False, True]}
-#models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
-#                                                         param_grid=params,
-#                                                         cv=10)
+#          "dual": [False]}
+# models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
+#                                                         param_grid=params)
 
-params = {"kernel": ["linear", "rbf", "sigmoid", "poly"],
-          "C": np.linspace(100.0, 0.001, 30),
-          "class_weight": [{-1: 0.8, 1: 0.2}]}
-models["svm"] = grid_search.GridSearchCV(estimator=svm.SVC(),
-                                         param_grid=params,
-                                         scoring=custom_scorer, verbose=3)
+# params = {"kernel": ["linear", "rbf", "sigmoid", "poly"],
+#           "C": np.linspace(100.0, 0.001, 30),
+#           "class_weight": [{-1: 0.8, 1: 0.2}]}
+# models["svm"] = grid_search.GridSearchCV(estimator=svm.SVC(),
+#                                          param_grid=params,
+#                                          scoring=custom_scorer, verbose=3)
+
+params = {"base_estimator": [tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10),
+							tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10, criterion='entropy')],
+		  "algorithm": ["SAMME","SAMME.R"],
+		  "n_estimators": [200, 500],
+		  "learning_rate": [0.05, 0.1, 1]}
+models["adaboost"] = grid_search.GridSearchCV(estimator=ensemble.AdaBoostClassifier(), 
+											  param_grid=params,
+											  scoring=custom_scorer, verbose=3)
+
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
