@@ -20,9 +20,32 @@ class MultipleEstimatorCV:
         for model_name, model in models.iteritems():
             m = model
             m.fit(X_train, y_train)
-            train_error = m.score(X_train, y_train)
-            test_error = m.score(X_test, y_test)
+            predicted_y_test = m.predict(X_test)
+            predicted_y_train = m.predict(X_train)
+
+            train_error = asymmetric_scorer(y_train, predicted_y_train)
+            test_error = asymmetric_scorer(y_test, predicted_y_test)
+            print(test_error)
             #error = metrics.mean_squared_error(y_test, y_pred)
             self.analyzed_models.append((m, model_name, test_error, train_error))
 
-        return sorted(self.analyzed_models, key=itemgetter(2, 3), reverse=True)
+        return sorted(self.analyzed_models, key=itemgetter(2, 3))
+
+
+def asymmetric_scorer(true_X, pred_X):
+
+    fp = 0
+    fn = 0
+    for i in range(true_X.size):
+        #false positive
+        if true_X[i] == 1 and pred_X[i] == -1:
+            fp += 1
+        #false negative
+        if true_X[i] == -1 and pred_X[i] == 1:
+            fn += 1
+
+    return (5 * fp + fn)/true_X.size
+
+
+
+

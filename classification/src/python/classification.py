@@ -4,7 +4,7 @@ import numpy as np
 import io_utils as io
 import classification_utils as class_utils
 
-from sklearn import svm, linear_model, grid_search, cross_validation
+from sklearn import svm, linear_model, grid_search, cross_validation, preprocessing, metrics
 
 
 ###############################################################################################
@@ -16,27 +16,39 @@ validation_X = io.read_x(io.VALIDATION_IN)
 
 training_y = training.cls
 training_X = training.drop(labels=['cls'], axis=1)
+
+
+###############################################################################################
+# Standardize data
+###############################################################################################
+print(training_X.shape)
+scaler = preprocessing.StandardScaler()
+training_X = scaler.fit_transform(training_X)
+testing_X = scaler.transform(testing_X)
+validation_X = scaler.transform(validation_X)
+
 ###############################################################################################
 # Train more models and pick the one with the highest R2 score
 ###############################################################################################
 
+custom_scorer = metrics.make_scorer(class_utils.asymmetric_scorer, greater_is_better=False)
 # Least squares model, normalize flag indicates that data should be standardized
 # (brought to normal distribution)
 models = {}
-params = {"penalty": ["l2"],
-          "C": np.linspace(1.0, 0.001, 10),
-          "class_weight": [{-1: 0.8, 1: 0.2}],
-          "fit_intercept": [False, True],
-          "dual": [False, True]}
-models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
-                                                         param_grid=params,
-                                                         cv=10)
+#params = {"penalty": ["l2"],
+#          "C": np.linspace(1.0, 0.001, 10),
+#          "class_weight": [{-1: 0.8, 1: 0.2}],
+#          "dual": [False, True]}
+#models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
+#                                                         param_grid=params,
+#                                                         cv=10)
 
 params = {"kernel": ["linear", "rbf", "sigmoid", "poly"],
-          "C": np.linspace(1.0, 0.001, 10),
+          "C": np.linspace(100.0, 0.001, 30),
           "class_weight": [{-1: 0.8, 1: 0.2}]}
 models["svm"] = grid_search.GridSearchCV(estimator=svm.SVC(),
-                                         param_grid=params)
+                                         param_grid=params,
+                                         scoring=custom_scorer, verbose=3)
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
