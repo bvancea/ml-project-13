@@ -31,28 +31,47 @@ validation_X = scaler.transform(validation_X)
 # Train more models and pick the one with the highest R2 score
 ###############################################################################################
 
+#The scoring function should be our asymmetric score function
 custom_scorer = metrics.make_scorer(class_utils.asymmetric_scorer, greater_is_better=False)
+
+# Cross validation model should be a stratified k-fold, meaning that an equal number of positivi
+# and negative samples should be chosen
+
+strat_kfold = 5
+
 # Least squares model, normalize flag indicates that data should be standardized
 # (brought to normal distribution)
 models = {}
-#params = {"penalty": ["l2"],
-#          "C": np.linspace(1.0, 0.001, 10),
-#          "class_weight": [{-1: 0.8, 1: 0.2}],
-#          "dual": [False, True]}
+C = np.logspace(2, -5, 30)
+weights = {-1: 0.8, 1: 0.2}
+#params = {"penalty": ["l1", "l2"],
+#          "C": C,
+#          "class_weight": [weights], "random_state": [42]}
 #models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
 #                                                         param_grid=params,
-#                                                         cv=10)
+#                                                         scoring=custom_scorer,
+#                                                         verbose=3)
 
 params = {"kernel": ["linear", "rbf", "sigmoid", "poly"],
-          "C": np.linspace(100.0, 0.001, 30),
-          "class_weight": [{-1: 0.8, 1: 0.2}]}
+          "C": C,
+          "class_weight": [weights],
+          "random_state": [42]}
 models["svm"] = grid_search.GridSearchCV(estimator=svm.SVC(),
                                          param_grid=params,
-                                         scoring=custom_scorer, verbose=3)
+                                         scoring=custom_scorer,
+                                         verbose=3)
+#params = {"C": C,
+#          "class_weight": [weights],
+#          "random_state": [42]}
+#models["linear-svm"] = grid_search.GridSearchCV(estimator=svm.LinearSVC(),
+#                                                param_grid=params,
+#                                                scoring=custom_scorer,
+#                                                verbose=3)
+
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
-estimator = class_utils.MultipleEstimatorCV(test_set_size=0.1)
+estimator = class_utils.MultipleEstimatorCV(test_set_size=0.1, cv=strat_kfold)
 training_X_copy = training_X
 training_y_copy = training_y
 ranking = estimator.cross_validate_models(models, training_X_copy, training_y_copy)
@@ -66,8 +85,9 @@ for count, (model, model_name, test_error, train_error) in enumerate(ranking):
 ###############################################################################################
 regr, name, test_error, train_error = ranking[0]
 
-# Best regressor
-print regr.get_params()
+# Best classifier
+print "Params of best classifier: ", regr.best_params_
+print "Score of best classifier: ", regr.best_score_
 #fit the whole training data after choosing the model
 #regr.fit(training_X, training_y)
 validation_y = regr.predict(validation_X)
