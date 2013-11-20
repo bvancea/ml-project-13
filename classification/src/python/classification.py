@@ -4,7 +4,7 @@ import numpy as np
 import io_utils as io
 import classification_utils as class_utils
 
-from sklearn import svm, linear_model, grid_search, cross_validation, preprocessing, metrics
+from sklearn import svm, linear_model, grid_search, cross_validation, ensemble, preprocessing, metrics, pipeline, feature_selection
 
 
 ###############################################################################################
@@ -21,11 +21,28 @@ training_X = training.drop(labels=['cls'], axis=1)
 ###############################################################################################
 # Standardize data
 ###############################################################################################
-print(training_X.shape)
+
 scaler = preprocessing.StandardScaler()
 training_X = scaler.fit_transform(training_X)
 testing_X = scaler.transform(testing_X)
 validation_X = scaler.transform(validation_X)
+
+
+###############################################################################################
+# Feature engineering
+###############################################################################################
+#feature_transforms = [np.square]
+#feature_adder = class_utils.FeatureAdder(functions=feature_transforms)
+#training_X, testing_X, validation_X = map(feature_adder.transform, (training_X, testing_X, validation_X))
+
+print(training_X.shape)
+
+###############################################################################################
+# Feature selection
+###############################################################################################
+
+feature_selector = feature_selection.SelectPercentile(feature_selection.f_classif)
+
 
 ###############################################################################################
 # Train more models and pick the one with the highest R2 score
@@ -37,59 +54,60 @@ custom_scorer = metrics.make_scorer(class_utils.asymmetric_scorer, greater_is_be
 # Cross validation model should be a stratified k-fold, meaning that an equal number of positivi
 # and negative samples should be chosen
 
-strat_kfold = 5
+strat_kfold = 10
 
 # Least squares model, normalize flag indicates that data should be standardized
 # (brought to normal distribution)
 models = {}
-C = np.logspace(2, -5, 30)
+C = np.logspace(-1.0, 2.0, 20)
+    #C = [1.2, 0.1]
+#weights = {-1: 0.8, 1: 0.2}
 weights = {-1: 0.8, 1: 0.2}
-#params = {"penalty": ["l1", "l2"],
-#          "C": C,
-#          "class_weight": [weights], "random_state": [42]}
-#models["logistic_regression"] = grid_search.GridSearchCV(estimator=linear_model.LogisticRegression(),
-#                                                         param_grid=params,
-#                                                         scoring=custom_scorer,
-#                                                         verbose=3)
+gamma = [1.5, 1.25, 1.0, 0.75, 0.5, 0.1]
 
-params = {"kernel": ["linear", "rbf", "sigmoid", "poly"],
-          "C": C,
-          "class_weight": [weights],
-          "random_state": [42]}
-models["svm"] = grid_search.GridSearchCV(estimator=svm.SVC(),
-                                         param_grid=params,
-                                         scoring=custom_scorer,
-                                         verbose=3)
-#params = {"C": C,
-#          "class_weight": [weights],
-#          "random_state": [42]}
-#models["linear-svm"] = grid_search.GridSearchCV(estimator=svm.LinearSVC(),
-#                                                param_grid=params,
-#                                                scoring=custom_scorer,
-#                                                verbose=3)
+percentiles = [100]
+#params = {"estimator__kernel": ["rbf"],
+#          "estimator__C": C,
+#          "estimator__gamma": gamma,
+#          "estimator__class_weight": [weights],
+#          "estimator__random_state": [None],
+#          "estimator__max_iter": [-1]}
+params = {"estimator__kernel": ["rbf"],
+          "estimator__C": [4.1],
+          "estimator__gamma": [1.25],
+          "estimator__class_weight": [weights],
+          "estimator__random_state": [None],
+          "estimator__max_iter": [10000]}
+svm_pipe = pipeline.Pipeline([('anova', feature_selector), ('estimator', svm.SVC())])
+for percentile in percentiles:
+    svm_pipe.set_params(anova__percentile=percentile)
+    models["svm_" + str(percentile)] = grid_search.GridSearchCV(estimator=svm_pipe,
+                                                                param_grid=params,
+                                                                scoring=custom_scorer,
+                                                                verbose=3)
 
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
-estimator = class_utils.MultipleEstimatorCV(test_set_size=0.1, cv=strat_kfold)
+estimator = class_utils.MultipleEstimatorCV(test_size=0.5, split_test=False, cv=strat_kfold)
 training_X_copy = training_X
 training_y_copy = training_y
 ranking = estimator.cross_validate_models(models, training_X_copy, training_y_copy)
 
 # Print a ranking of the models
-for count, (model, model_name, test_error, train_error) in enumerate(ranking):
-    print count, model_name, 'R2 Test score : %-10.6f' % test_error, 'R2 Train score : %-10.6f' % train_error
+for count, (model, model_name, cv_train_error) in enumerate(ranking):
+    print count, model_name, 'Cv Train score : %-10.6f' % cv_train_error
 
 ###############################################################################################
 # Use the highest ranking model for prediction
 ###############################################################################################
-regr, name, test_error, train_error = ranking[0]
-
+regr, name, cv_train_error = ranking[0]
 # Best classifier
 print "Params of best classifier: ", regr.best_params_
-print "Score of best classifier: ", regr.best_score_
+print "Score of best classifier: ", (-regr.best_score_)
 #fit the whole training data after choosing the model
 #regr.fit(training_X, training_y)
+
 validation_y = regr.predict(validation_X)
 testing_y = regr.predict(testing_X)
 
