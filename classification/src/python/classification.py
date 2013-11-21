@@ -4,7 +4,7 @@ import numpy as np
 import io_utils as io
 import classification_utils as class_utils
 
-from sklearn import svm, linear_model, grid_search, cross_validation, ensemble, preprocessing, metrics, pipeline, feature_selection
+from sklearn import svm, tree, linear_model, grid_search, cross_validation, ensemble, preprocessing, metrics, pipeline, feature_selection
 
 
 ###############################################################################################
@@ -86,6 +86,15 @@ for percentile in percentiles:
                                                                 scoring=custom_scorer,
                                                                 verbose=3)
 
+
+params = {"base_estimator": [tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10),
+							tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10, criterion='entropy')],
+		  "algorithm": ["SAMME","SAMME.R"],
+		  "n_estimators": [200, 500],
+		  "learning_rate": [0.05, 0.1, 1]}
+models["adaboost"] = grid_search.GridSearchCV(estimator=ensemble.AdaBoostClassifier(), 
+											  param_grid=params,
+											  scoring=custom_scorer, verbose=3)
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
