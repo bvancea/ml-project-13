@@ -4,7 +4,7 @@ import numpy as np
 import io_utils as io
 import classification_utils as class_utils
 
-from sklearn import svm, tree, linear_model, grid_search, cross_validation, ensemble, preprocessing, metrics, pipeline, feature_selection
+from sklearn import gaussian_process, svm, tree, linear_model, grid_search, cross_validation, ensemble, preprocessing, metrics, pipeline, feature_selection
 
 
 ###############################################################################################
@@ -27,14 +27,6 @@ training_X = scaler.fit_transform(training_X)
 testing_X = scaler.transform(testing_X)
 validation_X = scaler.transform(validation_X)
 
-
-###############################################################################################
-# Feature engineering
-###############################################################################################
-#feature_transforms = [np.square]
-#feature_adder = class_utils.FeatureAdder(functions=feature_transforms)
-#training_X, testing_X, validation_X = map(feature_adder.transform, (training_X, testing_X, validation_X))
-
 print(training_X.shape)
 
 ###############################################################################################
@@ -42,7 +34,6 @@ print(training_X.shape)
 ###############################################################################################
 
 feature_selector = feature_selection.SelectPercentile(feature_selection.f_classif)
-
 
 ###############################################################################################
 # Train more models and pick the one with the highest R2 score
@@ -60,23 +51,18 @@ strat_kfold = 10
 # (brought to normal distribution)
 models = {}
 C = np.logspace(-1.0, 2.0, 20)
-    #C = [1.2, 0.1]
+#C = [1.2, 0.1]
 #weights = {-1: 0.8, 1: 0.2}
-weights = {-1: 0.8, 1: 0.2}
+weights = {-1: 0.85, 1: 0.15}
 gamma = [1.5, 1.25, 1.0, 0.75, 0.5, 0.1]
 
 percentiles = [100]
-#params = {"estimator__kernel": ["rbf"],
-#          "estimator__C": C,
-#          "estimator__gamma": gamma,
-#          "estimator__class_weight": [weights],
-#          "estimator__random_state": [None],
-#          "estimator__max_iter": [-1]}
 params = {"estimator__kernel": ["rbf"],
-          "estimator__C": [4.1],
-          "estimator__gamma": [1.25],
+          "estimator__C": [4.2],
+          "estimator__gamma": [1.2],
           "estimator__class_weight": [weights],
-          "estimator__random_state": [None],
+          "estimator__random_state": [1],
+          "estimator__tol": [0.25],
           "estimator__max_iter": [10000]}
 svm_pipe = pipeline.Pipeline([('anova', feature_selector), ('estimator', svm.SVC())])
 for percentile in percentiles:
@@ -87,14 +73,15 @@ for percentile in percentiles:
                                                                 verbose=3)
 
 
-params = {"base_estimator": [tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10),
-							tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10, criterion='entropy')],
-		  "algorithm": ["SAMME","SAMME.R"],
-		  "n_estimators": [200, 500],
-		  "learning_rate": [0.05, 0.1, 1]}
-models["adaboost"] = grid_search.GridSearchCV(estimator=ensemble.AdaBoostClassifier(), 
-											  param_grid=params,
-											  scoring=custom_scorer, verbose=3)
+#params = {"base_estimator": [tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10),
+#							tree.DecisionTreeClassifier(max_depth=10, min_samples_leaf=10, criterion='entropy')],
+#		  "algorithm": ["SAMME","SAMME.R"],
+#		  "n_estimators": [200, 500],
+#		  "learning_rate": [0.05, 0.1, 1]}
+#models["adaboost"] = grid_search.GridSearchCV(estimator=ensemble.AdaBoostClassifier(),
+#											  param_grid=params,
+#											  scoring=custom_scorer, verbose=3)
+
 # Train all the models on a fraction of the training data set, test_set_size represents the
 # fraction of the training data used only for testing the model performance. Cross-Validation
 # for each model is not done on that part of the data
@@ -110,15 +97,14 @@ for count, (model, model_name, cv_train_error) in enumerate(ranking):
 ###############################################################################################
 # Use the highest ranking model for prediction
 ###############################################################################################
-regr, name, cv_train_error = ranking[0]
+cls, name, cv_train_error = ranking[0]
 # Best classifier
-print "Params of best classifier: ", regr.best_params_
-print "Score of best classifier: ", (-regr.best_score_)
+print "Params of best classifier: ", cls.best_params_
+print "Score of best classifier: ", (-cls.best_score_)
 #fit the whole training data after choosing the model
-#regr.fit(training_X, training_y)
 
-validation_y = regr.predict(validation_X)
-testing_y = regr.predict(testing_X)
+validation_y = cls.predict(validation_X)
+testing_y = cls.predict(testing_X)
 
 ###############################################################################################
 # Write to the output file
