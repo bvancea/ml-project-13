@@ -6,8 +6,11 @@ import pandas as pd
 TRAINING_IN = "../resources/training.csv"
 VALIDATION_IN = "../resources/validation.csv"
 TESTING_IN = "../resources/testing.csv"
+TRAINING_UNLABELED = "../resources/training-unlabeled.csv"
+
 TESTING_OUT = './out/testing_y.out'
 VALIDATION_OUT = './out/validation_y.out'
+TRAINING_UNLABELED_OUT = "./out/training-unlabeled_out.csv"
 
 #some relevant column names
 headers = ["name", "city", "country"]

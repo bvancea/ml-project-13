@@ -14,9 +14,6 @@ from sklearn.metrics import make_scorer
 import io_utils as io
 import pandas as pd
 
-
-
-
 ###############################################################################################
 # Read input data
 ###############################################################################################
@@ -71,8 +68,29 @@ print("Best score for city ", mnb_city.best_score_)
 ###############################################################################################
 # Write predictions to the output file
 ###############################################################################################
-y_validation = np.column_stack((y_city, y_country))
+y_validation = np.column_stack((y_country, y_country))#((y_city, y_country))
 io.write_prediction(io.VALIDATION_OUT, y_validation)
 
 #y_test = np.column_stack((y_city, y_country))
 #io.write_prediction(io.TESTING_OUT, y_test)
+
+###############################################################################################
+# Check if the country is well predicted in the dataset
+###############################################################################################
+train_unlabeled = io.read_x(io.TRAINING_UNLABELED, ["name"])
+X_name_train_unlabeled = vectorizer.transform(train_unlabeled["name"])
+y_country = mnb_country.predict(X_name_train_unlabeled.toarray())
+y_validation = np.column_stack((y_country, y_country))
+#io.write_prediction(io.TRAINING_UNLABELED_OUT, y_validation) 
+
+matches = 0
+for i in range(len(y_country)):
+        #print y_country[i]
+        if training["country"][i] == y_country[i]:
+                matches = matches + 1
+
+success_rate = 1 - matches/(len(y_country) + 0.0)
+print("Success rate: ", success_rate)
+
+
+
